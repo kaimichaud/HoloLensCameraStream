@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 //using System.Runtime.Serialization.Formatters.Binary;
 #if WINDOWS_UWP

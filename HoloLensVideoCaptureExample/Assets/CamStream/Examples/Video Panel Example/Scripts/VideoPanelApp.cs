@@ -4,9 +4,11 @@
 //
 using UnityEngine;
 using System;
+using UnityEngine.UI;
 using HoloLensCameraStream;
 using System.Collections.Generic;
 using System.Collections;
+using System.Linq;
 
 #if WINDOWS_UWP && XR_PLUGIN_OPENXR
 using Windows.Perception.Spatial;
@@ -28,6 +30,7 @@ using UnityEngine.Windows;
 /// </summary>
 public class VideoPanelApp : MonoBehaviour
 {
+    public RawImage depthimage;
 
     byte[] _latestImageBytes;
     TCPClient tcpClient;
@@ -38,6 +41,7 @@ public class VideoPanelApp : MonoBehaviour
     public VideoPanel _videoPanelUI;
     VideoCapture _videoCapture;
     public TextMesh _displayText;
+    public Image depth_image;
 
     IntPtr _spatialCoordinateSystemPtr;
 
@@ -120,6 +124,103 @@ public class VideoPanelApp : MonoBehaviour
 #endif  
 #endif
     }
+
+    public Vector3[] AlignTextures(Vector3[] org, float alignX, float alignY)
+    {
+#if ENABLE_WINMD_SUPPORT
+        Byte[] frameTexture = researchMode.GetLongDepthMapTextureBuffer();
+        Texture2D newtex = new Texture2D(256, 256);
+        ImageConversion.LoadImage(newtex, frameTexture);
+        Vector2 pivot = new Vector2(0.5f, 0.5f);
+        Rect tRect = new Rect(0, 0, newtex.width, newtex.height);
+        depth_image.overrideSprite = Sprite.Create(newtex, tRect, pivot);
+        depthimage.texture = newtex; //set image to see the depth tex
+#endif
+
+        // Calculation to get 1D from 2D y * width + x
+        Vector3[] placeholder = new Vector3[30];
+        DebugText.LOG(org.Length.ToString());
+
+        for (int i = 0; i < org.Length; i++)
+        {
+            float x = org[i].x + 30.0f;
+            float y = org[i].y + 10.0f;
+
+            // if(y < 0)
+            // {
+            //     y = 0;
+            // }
+            placeholder[i].z = 0.0f;
+
+
+#if ENABLE_WINMD_SUPPORT
+            //code to go from 2d coordinate to buffer pixel to retrive depth value
+            int placement = (int)(y * 320 + x);
+            float valueDepth = 0.0f;
+
+            int search_radius = 3;
+
+            /*for(int x = 0; x < 320; x++) 
+            {
+                for(int y = 0; y < 320; y++) 
+                {
+                    int dist = mathf.
+                }
+            }*/
+
+            valueDepth = -float.Parse(frameTexture[placement].ToString())/80;
+            valueDepth += -float.Parse(frameTexture[placement + 1].ToString())/80;
+            valueDepth += -float.Parse(frameTexture[placement - 1].ToString())/80;
+            valueDepth += -float.Parse(frameTexture[placement + 320].ToString())/80;
+            valueDepth += -float.Parse(frameTexture[placement - 320].ToString())/80;
+
+            valueDepth /= 5;
+
+            //valueDepth = findMaxRecursive(3, placement, valueDepth, frameTexture);
+            valueDepth = 10;
+            //valueDepth = UnityEngine.Random.Range(-5, 5);
+
+            DebugText.LOG("depthvalue: " + valueDepth.ToString());
+            placeholder[i].z += valueDepth;
+#endif
+            placeholder[i].z += 9.0f;
+            placeholder[i].x = alignX;
+            placeholder[i].y = alignY;
+
+            // DebugText.LOG(x + " " + y + " : " + placeholder[i].z);
+
+
+        }
+
+        /*for(int i = 0; i < placeholder.Length; i++)
+        {
+            placeholder[i] = Vector3.zero;
+        }*/
+        return placeholder;
+    }
+
+    public float findMaxRecursive(int range, int initPlacement, float max, byte[] frameText)
+    {
+        float[] valueRange = new float[5];
+        valueRange[1] = max;
+        valueRange[1] = -float.Parse(frameText[initPlacement + range].ToString()) / 80;
+        valueRange[2] = -float.Parse(frameText[initPlacement - range].ToString()) / 80;
+        valueRange[3] = -float.Parse(frameText[initPlacement + range * 320].ToString()) / 80;
+        valueRange[4] = -float.Parse(frameText[initPlacement - range * 320].ToString()) / 80;
+
+        DebugText.LOG("depthvalue MAX: " + valueRange.Max().ToString());
+
+        if (range > 1)
+        {
+            return findMaxRecursive(range - 1, initPlacement, valueRange.Max(), frameText);
+        }
+        else
+        {
+            return valueRange.Max();
+        }
+    }
+
+
 
     public void SavePointCloudPLY()
     {

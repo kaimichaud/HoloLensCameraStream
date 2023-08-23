@@ -46,7 +46,8 @@ public class TCPServer : MonoBehaviour
     public Vector3[] inputPointsTCP;
     public Vector3 offset = new Vector3(0, 0, 0);
     public Transform Alignment;
-    
+
+
     uint imageSize;
 #if !UNITY_EDITOR
         StreamSocket socket;
